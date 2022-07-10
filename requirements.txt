@@ -1,1 +1,1 @@
-aioytmdesktopapi==0.0.1
+aioytmdesktopapi==0.1.0
