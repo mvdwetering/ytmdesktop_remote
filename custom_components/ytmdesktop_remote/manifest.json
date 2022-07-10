@@ -2,7 +2,8 @@
   "domain": "ytmdesktop_remote",
   "name": "YouTube Music Desktop Remote Control",
   "config_flow": true,
-  "documentation": "https://www.home-assistant.io/integrations/ytmdesktop_remote",
+  "documentation": "https://github.com/mvdwetering/ytmdesktop_remote",
+  "issue_tracker": "https://github.com/mvdwetering/ytmdesktop_remote/issues",
   "requirements": [
     "aioytmdesktopapi==0.1.0"
   ],
