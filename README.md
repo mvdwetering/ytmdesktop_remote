@@ -2,12 +2,6 @@
 
 Custom integration for Home Assistant to remote control the [YouTube Music Desktop app](https://ytmdesktop.app/).
 
-Status:
-
-* Mediaplayer seems to work fine
-* Unittests not done yet
-* `aioytmdesktopapi` dependency not available on PyPi yet, so need to install manually
-
 ## Features
 
 Exposes a mediaplayer to control a YouTue Music Desktop instance with the following features:
