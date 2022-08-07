@@ -57,7 +57,8 @@ class YtmDesktopMediaPlayer(MediaPlayerEntity):
 
     _attr_should_poll = True
     _attr_media_image_remotely_accessible = True
-    _attr_name = "YouTube Music Desktop"  # API does not expose a name. Pick a decent default, user can change
+    _attr_name = None
+    _attr_has_entity_name = True
 
     def schedule_ha_update(func):
         async def _decorator(self: YtmDesktopMediaPlayer, *args, **kwargs):
@@ -75,6 +76,7 @@ class YtmDesktopMediaPlayer(MediaPlayerEntity):
 
         self._attr_unique_id = configentry_id
         self._attr_device_info = {
+            "name": "YouTube Music Desktop",  # API does not expose a name. Pick a decent default, user can change
             "identifiers": {(DOMAIN, configentry_id)},
         }
 
