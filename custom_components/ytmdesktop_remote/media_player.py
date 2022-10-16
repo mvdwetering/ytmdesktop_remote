@@ -9,19 +9,11 @@ import logging
 from homeassistant.components.media_player import (
     MediaPlayerEntity,
     MediaPlayerEntityFeature,
-)
-from homeassistant.components.media_player.const import (
-    MEDIA_TYPE_MUSIC,
-    REPEAT_MODE_ALL,
-    REPEAT_MODE_OFF,
-    REPEAT_MODE_ONE,
+    MediaPlayerState,
+    MediaType,
+    RepeatMode,
 )
 from homeassistant.config_entries import ConfigEntry, ConfigEntryAuthFailed
-from homeassistant.const import (
-    STATE_IDLE,
-    STATE_PLAYING,
-    STATE_PAUSED,
-)
 from homeassistant.core import HomeAssistant
 from homeassistant.util.dt import utcnow
 
@@ -113,10 +105,10 @@ class YtmDesktopMediaPlayer(MediaPlayerEntity):
     def state(self) -> str:
         """Return the state of the entity."""
         if not self._api.player or not self._api.player.has_song:
-            return STATE_IDLE
+            return MediaPlayerState.IDLE
         if self._api.player.is_paused:
-            return STATE_PAUSED
-        return STATE_PLAYING
+            return MediaPlayerState.PAUSED
+        return MediaPlayerState.PLAYING
 
     @property
     def volume_level(self):
@@ -168,28 +160,28 @@ class YtmDesktopMediaPlayer(MediaPlayerEntity):
     def repeat(self) -> Optional[str]:
         """Return current repeat mode."""
         if self._api.player.repeat_type == aioytmdesktopapi.RepeatType.ONE:
-            return REPEAT_MODE_ONE
+            return RepeatMode.ONE
         if self._api.player.repeat_type == aioytmdesktopapi.RepeatType.ALL:
-            return REPEAT_MODE_ALL
+            return RepeatMode.ALL
         if self._api.player.repeat_type == aioytmdesktopapi.RepeatType.NONE:
-            return REPEAT_MODE_OFF
+            return RepeatMode.OFF
         return None
 
     @schedule_ha_update
     async def async_set_repeat(self, repeat) -> None:
         """Set repeat mode."""
-        if repeat == REPEAT_MODE_ALL:
+        if repeat == RepeatMode.ALL:
             await self._api.send_command.player_repeat(aioytmdesktopapi.RepeatType.ALL)
-        elif repeat == REPEAT_MODE_OFF:
+        elif repeat == RepeatMode.OFF:
             await self._api.send_command.player_repeat(aioytmdesktopapi.RepeatType.NONE)
-        elif repeat == REPEAT_MODE_ONE:
+        elif repeat == RepeatMode.ONE:
             await self._api.send_command.player_repeat(aioytmdesktopapi.RepeatType.ONE)
 
     # Media info
     @property
     def media_content_type(self) -> Optional[str]:
         """Content type of current playing media."""
-        return MEDIA_TYPE_MUSIC
+        return MediaType.MUSIC
 
     @property
     def media_title(self) -> Optional[str]:
@@ -222,7 +214,7 @@ class YtmDesktopMediaPlayer(MediaPlayerEntity):
 
         Returns value from homeassistant.util.dt.utcnow().
         """
-        if self.state == STATE_PLAYING:
+        if self.state == MediaPlayerState.PLAYING:
             return self._position_updated_at
 
     @property
