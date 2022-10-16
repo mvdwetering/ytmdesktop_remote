@@ -15,6 +15,8 @@ Exposes a mediaplayer to control a YouTue Music Desktop instance with the follow
 
 ### HACS
 
+Recommended because you get notified of updates.
+
 * Add this repository `https://github.com/mvdwetering/ytmdesktop_remote` to HACS as a "custom repository" with category "integration"
 * Add integration within HACS (use the + button and search for "YouTube Music Desktop Remote Control")
 * Restart Home Assistant
