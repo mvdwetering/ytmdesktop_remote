@@ -1,5 +1,5 @@
 {
     "name": "YouTube Music Desktop Remote Control",
     "render_readme": true,
-    "homeassistant": "2022.8.0"
+    "homeassistant": "2022.10.0"
 }
