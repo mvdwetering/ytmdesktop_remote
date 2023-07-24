@@ -7,7 +7,7 @@ Custom integration for Home Assistant to remote control the [YouTube Music Deskt
 Exposes a mediaplayer to control a YouTube Music Desktop instance with the following features:
 
 * Volume and mute
-* Show metadata like artist, album, song
+* Show metadata like artist, album, song and albumart
 * Control playback (play, pause, next, prev, etc...)
 * Set repeat mode
 
