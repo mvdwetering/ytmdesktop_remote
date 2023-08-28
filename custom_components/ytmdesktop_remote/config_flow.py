@@ -32,17 +32,17 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str,
     Data has the keys from STEP_USER_DATA_SCHEMA with values provided by the user.
     """
     try:
-        api = aioytmdesktopapi.YtmDesktop(
+        async with aioytmdesktopapi.YtmDesktop(
             async_get_clientsession(hass), data["host"], data.get("password", None)
-        )
-        await api.initialize()
+        ) as api:
+            await api.initialize()
 
-        # There is no explicit way to check if authenticated.
-        # Only commands need to have authentication so lets send a dummy command
-        # Turns out Play and Pause are both toggles, so send it twice
-        # to get the player back in the same state :/
-        await api.send_command.track_pause()
-        await api.send_command.track_pause()
+            # There is no explicit way to check if authenticated.
+            # Only commands need to have authentication so lets send a dummy command
+            # Turns out Play and Pause are both toggles, so send it twice
+            # to get the player back in the same state :/
+            await api.send_command.track_pause()
+            await api.send_command.track_pause()
     except aioytmdesktopapi.Unauthorized:
         raise InvalidAuth
     except aioytmdesktopapi.RequestError:
