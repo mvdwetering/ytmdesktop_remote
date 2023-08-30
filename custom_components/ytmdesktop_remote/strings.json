@@ -1,20 +1,25 @@
 {
-  "config": {
-      "abort": {
-          "already_configured": "Device is already configured"
-      },
-      "error": {
-          "cannot_connect": "Failed to connect",
-          "invalid_auth": "Invalid authentication",
-          "unknown": "Unexpected error"
-      },
-      "step": {
-          "user": {
-              "data": {
-                  "host": "Host",
-                  "password": "Password"
-              }
-          }
-      }
-  }
+    "config": {
+        "abort": {
+            "already_configured": "Device is already configured",
+            "reauth_successful": "Successfully reauthenticated"
+        },
+        "error": {
+            "cannot_connect": "Failed to connect",
+            "invalid_auth": "Invalid authentication",
+            "unknown": "Unexpected error"
+        },
+        "step": {
+            "user": {
+                "data": {
+                    "host": "Host",
+                    "password": "Password"
+                }
+            },
+            "reauth_confirm": {
+                "title": "Reauthenticate Integration",
+                "description": "The Youtube Music Desktop integration needs to be reauthenticated"
+            }
+        }
+    }
 }

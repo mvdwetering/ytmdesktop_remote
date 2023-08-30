@@ -1,1 +1,5 @@
-homeassistant-stubs==2022.10.4
+-r requirements.txt
+mypy==1.4.0
+
+homeassistant-stubs==2023.8.0
+pytest-homeassistant-custom-component==0.13.49

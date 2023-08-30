@@ -1,10 +1,8 @@
 from __future__ import annotations
 import asyncio
-from datetime import timedelta
 from typing import Optional
 
 import aioytmdesktopapi
-import logging
 
 from homeassistant.components.media_player import (
     MediaPlayerEntity,
@@ -13,12 +11,12 @@ from homeassistant.components.media_player import (
     MediaType,
     RepeatMode,
 )
-from homeassistant.config_entries import ConfigEntry, ConfigEntryAuthFailed
+from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
-from homeassistant.util.dt import utcnow
-
+from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN, LOGGER
+from .coordinator import YtmdCoordinator
 
 SUPPORTED_MEDIAPLAYER_COMMANDS = (
     MediaPlayerEntityFeature.VOLUME_SET
@@ -31,40 +29,27 @@ SUPPORTED_MEDIAPLAYER_COMMANDS = (
     # | MediaPlayerEntityFeature.SEEK     API command not working, see https://github.com/ytmdesktop/ytmdesktop/issues/885
 )
 
-# Using timedelta of 5 seconds often gives Server Disconnect exceptions
-# maybe YTMD has a 5 second timeout that conflicts occasionally?
-SCAN_INTERVAL = timedelta(seconds=6)
-
 
 async def async_setup_entry(
     hass: HomeAssistant, config_entry: ConfigEntry, async_add_entities
 ):
+    coordinator: YtmdCoordinator = hass.data[DOMAIN][config_entry.entry_id]
+    async_add_entities(
+        [YtmDesktopMediaPlayer(coordinator, config_entry.entry_id)], True
+    )
 
-    api = hass.data[DOMAIN][config_entry.entry_id]
-    async_add_entities([YtmDesktopMediaPlayer(config_entry.entry_id, api)], True)
 
-
-class YtmDesktopMediaPlayer(MediaPlayerEntity):
+class YtmDesktopMediaPlayer(CoordinatorEntity, MediaPlayerEntity):
     """YouTube Music Desktop mediaplayer."""
 
-    _attr_should_poll = True
     _attr_media_image_remotely_accessible = True
     _attr_name = None
     _attr_has_entity_name = True
 
-    def schedule_ha_update(func):
-        async def _decorator(self: YtmDesktopMediaPlayer, *args, **kwargs):
-            await func(self, *args, **kwargs)
-            await asyncio.sleep(1)  # When immediately updating sometimes it is too soon
-            self.async_schedule_update_ha_state(True)
-
-        return _decorator
-
-    def __init__(self, configentry_id: str, api: aioytmdesktopapi.YtmDesktop) -> None:
-        self._api = api
-        self._available = False
-        self._position = None
-        self._position_updated_at = None
+    def __init__(self, coordinator: YtmdCoordinator, configentry_id: str) -> None:
+        super().__init__(coordinator)
+        self.coordinator: YtmdCoordinator
+        self._configentry_id = configentry_id
 
         self._attr_unique_id = configentry_id
         self._attr_device_info = {
@@ -72,48 +57,34 @@ class YtmDesktopMediaPlayer(MediaPlayerEntity):
             "identifiers": {(DOMAIN, configentry_id)},
         }
 
-    async def async_update(self) -> None:
-        """Do a request to the YouTube Music Desktop instance"""
-        try:
-            await self._api.update()
-            self._available = True
+    def schedule_ha_update(func):
+        async def _decorator(self: YtmDesktopMediaPlayer, *args, **kwargs):
+            try:
+                await func(self, *args, **kwargs)
+                await asyncio.sleep(
+                    1
+                )  # When immediately updating sometimes it is too soon
+                self.async_schedule_update_ha_state(True)
+            except aioytmdesktopapi.Unauthorized:
+                entry = self.hass.config_entries.async_get_entry(self._attr_unique_id)
+                entry.async_start_reauth(self.hass)
+                # await self.hass.config_entries.async_reload(self._configentry_id)
 
-            if (
-                self._api.player
-                and self._position != self._api.player.seekbar_current_position
-            ):
-                self._position = self._api.player.seekbar_current_position
-                self._position_updated_at = utcnow()
-        except aioytmdesktopapi.RequestError:
-            if self._available:
-                LOGGER.error("Error updating %s", self._api.host)
-            if LOGGER.level == logging.DEBUG:
-                LOGGER.exception("Exception during update for %s" % self._api.host)
-
-            self._available = False
-        except aioytmdesktopapi.Unauthorized as err:
-            LOGGER.error("Authentication error for %s", self._api.host)
-            self._available = False
-            raise ConfigEntryAuthFailed(err) from err
+        return _decorator
 
     @property
-    def available(self) -> bool:
-        """Return True if entity is available."""
-        return self._available
-
-    @property
-    def state(self) -> str:
+    def state(self) -> MediaPlayerState | None:
         """Return the state of the entity."""
-        if not self._api.player or not self._api.player.has_song:
+        if not self.coordinator.api.player or not self.coordinator.api.player.has_song:
             return MediaPlayerState.IDLE
-        if self._api.player.is_paused:
+        if self.coordinator.api.player.is_paused:
             return MediaPlayerState.PAUSED
         return MediaPlayerState.PLAYING
 
     @property
     def volume_level(self):
         """Volume level of the media player (0..1)."""
-        return self._api.player.volume_percent / 100
+        return self.coordinator.api.player.volume_percent / 100
 
     @property
     def supported_features(self):
@@ -123,47 +94,47 @@ class YtmDesktopMediaPlayer(MediaPlayerEntity):
     @schedule_ha_update
     async def async_set_volume_level(self, volume) -> None:
         """Set volume level, convert range from 0..1."""
-        await self._api.send_command.player_set_volume(volume * 100)
+        await self.coordinator.api.send_command.player_set_volume(volume * 100)
 
     @schedule_ha_update
     async def async_volume_up(self) -> None:
         """Volume up media player."""
-        await self._api.send_command.player_volume_up()
+        await self.coordinator.api.send_command.player_volume_up()
 
     @schedule_ha_update
     async def async_volume_down(self) -> None:
         """Volume down media player."""
-        await self._api.send_command.player_volume_down()
+        await self.coordinator.api.send_command.player_volume_down()
 
     @schedule_ha_update
     async def async_media_play(self) -> None:
-        await self._api.send_command.track_play()
+        await self.coordinator.api.send_command.track_play()
 
     @schedule_ha_update
     async def async_media_pause(self) -> None:
-        await self._api.send_command.track_pause()
+        await self.coordinator.api.send_command.track_pause()
 
     @schedule_ha_update
     async def async_media_next_track(self) -> None:
-        await self._api.send_command.track_next()
+        await self.coordinator.api.send_command.track_next()
 
     @schedule_ha_update
     async def async_media_previous_track(self) -> None:
-        await self._api.send_command.track_previous()
+        await self.coordinator.api.send_command.track_previous()
 
     @schedule_ha_update
     async def async_media_seek(self, position) -> None:
-        if self._api.track:
-            await self._api.send_command.player_set_seekbar(int(position))
+        if self.coordinator.api.track:
+            await self.coordinator.api.send_command.player_set_seekbar(int(position))
 
     @property
     def repeat(self) -> Optional[str]:
         """Return current repeat mode."""
-        if self._api.player.repeat_type == aioytmdesktopapi.RepeatType.ONE:
+        if self.coordinator.api.player.repeat_type == aioytmdesktopapi.RepeatType.ONE:
             return RepeatMode.ONE
-        if self._api.player.repeat_type == aioytmdesktopapi.RepeatType.ALL:
+        if self.coordinator.api.player.repeat_type == aioytmdesktopapi.RepeatType.ALL:
             return RepeatMode.ALL
-        if self._api.player.repeat_type == aioytmdesktopapi.RepeatType.NONE:
+        if self.coordinator.api.player.repeat_type == aioytmdesktopapi.RepeatType.NONE:
             return RepeatMode.OFF
         return None
 
@@ -171,11 +142,17 @@ class YtmDesktopMediaPlayer(MediaPlayerEntity):
     async def async_set_repeat(self, repeat) -> None:
         """Set repeat mode."""
         if repeat == RepeatMode.ALL:
-            await self._api.send_command.player_repeat(aioytmdesktopapi.RepeatType.ALL)
+            await self.coordinator.api.send_command.player_repeat(
+                aioytmdesktopapi.RepeatType.ALL
+            )
         elif repeat == RepeatMode.OFF:
-            await self._api.send_command.player_repeat(aioytmdesktopapi.RepeatType.NONE)
+            await self.coordinator.api.send_command.player_repeat(
+                aioytmdesktopapi.RepeatType.NONE
+            )
         elif repeat == RepeatMode.ONE:
-            await self._api.send_command.player_repeat(aioytmdesktopapi.RepeatType.ONE)
+            await self.coordinator.api.send_command.player_repeat(
+                aioytmdesktopapi.RepeatType.ONE
+            )
 
     # Media info
     @property
@@ -186,27 +163,31 @@ class YtmDesktopMediaPlayer(MediaPlayerEntity):
     @property
     def media_title(self) -> Optional[str]:
         """Title of current playing media."""
-        return self._api.track.title if self._api.track else None
+        return self.coordinator.api.track.title if self.coordinator.api.track else None
 
     @property
     def media_artist(self) -> Optional[str]:
         """Artist of current playing media, music track only."""
-        return self._api.track.author if self._api.track else None
+        return self.coordinator.api.track.author if self.coordinator.api.track else None
 
     @property
     def media_album_name(self) -> Optional[str]:
         """Album name of current playing media, music track only."""
-        return self._api.track.album if self._api.track else None
+        return self.coordinator.api.track.album if self.coordinator.api.track else None
 
     @property
     def media_image_url(self) -> Optional[str]:
         """Image url of current playing media."""
-        return self._api.track.cover if self._api.track else None
+        return self.coordinator.api.track.cover if self.coordinator.api.track else None
 
     @property
     def media_position(self):
         """Position of current playing media in seconds."""
-        return self._position
+        return (
+            self.coordinator.api.player.seekbar_current_position
+            if self.coordinator.api.player
+            else None
+        )
 
     @property
     def media_position_updated_at(self):
@@ -215,9 +196,11 @@ class YtmDesktopMediaPlayer(MediaPlayerEntity):
         Returns value from homeassistant.util.dt.utcnow().
         """
         if self.state == MediaPlayerState.PLAYING:
-            return self._position_updated_at
+            return self.coordinator.data.last_updated
 
     @property
     def media_duration(self):
         """Time in seconds of current song duration."""
-        return self._api.track.duration if self._api.track else None
+        return (
+            self.coordinator.api.track.duration if self.coordinator.api.track else None
+        )
