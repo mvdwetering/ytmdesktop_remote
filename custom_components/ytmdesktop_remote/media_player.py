@@ -61,7 +61,9 @@ class YtmDesktopMediaPlayer(CoordinatorEntity, MediaPlayerEntity):
         async def _decorator(self: YtmDesktopMediaPlayer, *args, **kwargs):
             try:
                 await func(self, *args, **kwargs)
-                await asyncio.sleep(1)  # When immediately updating sometimes it is too soon
+                await asyncio.sleep(
+                    1
+                )  # When immediately updating sometimes it is too soon
                 self.async_schedule_update_ha_state(True)
             except aioytmdesktopapi.Unauthorized:
                 entry = self.hass.config_entries.async_get_entry(self._attr_unique_id)

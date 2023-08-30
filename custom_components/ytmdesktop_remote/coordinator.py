@@ -14,10 +14,12 @@ from homeassistant.util.dt import utcnow
 
 from .const import COORDINATOR_UPDATE_INTERVAL, LOGGER
 
+
 @dataclass
 class CoordinatorData:
     api: aioytmdesktopapi.YtmDesktop
     last_updated: datetime.datetime
+
 
 class YtmdCoordinator(DataUpdateCoordinator):
     """My custom coordinator."""
@@ -51,7 +53,6 @@ class YtmdCoordinator(DataUpdateCoordinator):
             raise ConfigEntryAuthFailed from err
         except aioytmdesktopapi.RequestError as err:
             raise UpdateFailed(f"Error communicating with API: {err}")
-
 
     # async def async_update(self) -> None:
     #     """Do a request to the YouTube Music Desktop instance"""
