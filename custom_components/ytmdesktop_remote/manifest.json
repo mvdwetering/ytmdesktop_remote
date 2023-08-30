@@ -11,7 +11,7 @@
   "iot_class": "local_polling",
   "issue_tracker": "https://github.com/mvdwetering/ytmdesktop_remote/issues",
   "requirements": [
-    "aioytmdesktopapi==0.1.0"
+    "aioytmdesktopapi==0.1.1"
   ],
   "version": "0.4.0"
 }

@@ -57,7 +57,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     VERSION = 1
 
-    # TODO: Keep data between calls
+    reauth_entry: config_entries.ConfigEntry | None = None
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
@@ -65,7 +65,8 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         """Handle the initial step."""
         if user_input is None:
             return self.async_show_form(
-                step_id="user", data_schema=STEP_USER_DATA_SCHEMA
+                step_id="user",
+                data_schema=STEP_USER_DATA_SCHEMA,
             )
 
         errors = {}
@@ -80,14 +81,29 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             _LOGGER.exception("Unexpected exception")
             errors["base"] = "unknown"
         else:
+            if self.reauth_entry:
+                self.hass.config_entries.async_update_entry(
+                    self.reauth_entry, data=user_input
+                )
+                await self.hass.config_entries.async_reload(self.reauth_entry.entry_id)
+                return self.async_abort(reason="reauth_successful")
+
             return self.async_create_entry(title=info["title"], data=user_input)
 
         return self.async_show_form(
-            step_id="user", data_schema=STEP_USER_DATA_SCHEMA, errors=errors
+            step_id="user",
+            data_schema=self.add_suggested_values_to_schema(
+                STEP_USER_DATA_SCHEMA, user_input
+            ),
+            errors=errors,
         )
 
     async def async_step_reauth(self, user_input=None):
         """Perform reauth upon an API authentication error."""
+        self.reauth_entry = self.hass.config_entries.async_get_entry(
+            self.context["entry_id"]
+        )
+
         return await self.async_step_reauth_confirm()
 
     async def async_step_reauth_confirm(self, user_input=None):
@@ -95,9 +111,11 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         if user_input is None:
             return self.async_show_form(
                 step_id="reauth_confirm",
-                data_schema=vol.Schema({}),
+                last_step=False,
             )
-        return await self.async_step_user()
+
+        assert self.reauth_entry is not None
+        return await self.async_step_user(self.reauth_entry.data)
 
 
 class CannotConnect(HomeAssistantError):

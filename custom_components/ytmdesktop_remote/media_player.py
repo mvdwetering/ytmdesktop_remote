@@ -46,23 +46,29 @@ class YtmDesktopMediaPlayer(CoordinatorEntity, MediaPlayerEntity):
     _attr_name = None
     _attr_has_entity_name = True
 
-    def schedule_ha_update(func):
-        async def _decorator(self: YtmDesktopMediaPlayer, *args, **kwargs):
-            await func(self, *args, **kwargs)
-            await asyncio.sleep(1)  # When immediately updating sometimes it is too soon
-            self.async_schedule_update_ha_state(True)
-
-        return _decorator
-
     def __init__(self, coordinator: YtmdCoordinator, configentry_id: str) -> None:
         super().__init__(coordinator)
         self.coordinator: YtmdCoordinator
+        self._configentry_id = configentry_id
 
         self._attr_unique_id = configentry_id
         self._attr_device_info = {
             "name": "YouTube Music Desktop",  # API does not expose a name. Pick a decent default, user can change
             "identifiers": {(DOMAIN, configentry_id)},
         }
+
+    def schedule_ha_update(func):
+        async def _decorator(self: YtmDesktopMediaPlayer, *args, **kwargs):
+            try:
+                await func(self, *args, **kwargs)
+                await asyncio.sleep(1)  # When immediately updating sometimes it is too soon
+                self.async_schedule_update_ha_state(True)
+            except aioytmdesktopapi.Unauthorized:
+                entry = self.hass.config_entries.async_get_entry(self._attr_unique_id)
+                entry.async_start_reauth(self.hass)
+                # await self.hass.config_entries.async_reload(self._configentry_id)
+
+        return _decorator
 
     @property
     def state(self) -> MediaPlayerState | None:
