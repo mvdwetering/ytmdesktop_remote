@@ -6,6 +6,7 @@ import aioytmdesktopapi
 import async_timeout
 
 from homeassistant.exceptions import ConfigEntryAuthFailed
+from homeassistant.helpers.debounce import Debouncer
 from homeassistant.helpers.update_coordinator import (
     DataUpdateCoordinator,
     UpdateFailed,
@@ -33,6 +34,9 @@ class YtmdCoordinator(DataUpdateCoordinator):
             name="YouTube Music Desktop Remote Control",
             # Polling interval. Will only be polled if there are subscribers.
             update_interval=COORDINATOR_UPDATE_INTERVAL,
+            request_refresh_debouncer=Debouncer(
+                hass, LOGGER, cooldown=1.0, immediate=False
+            ),
         )
         self.api = api
 
