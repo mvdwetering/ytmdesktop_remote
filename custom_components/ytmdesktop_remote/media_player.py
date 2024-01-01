@@ -15,7 +15,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import DOMAIN, LOGGER
+from .const import DOMAIN
 from .coordinator import YtmdCoordinator
 
 SUPPORTED_MEDIAPLAYER_COMMANDS = (
@@ -38,6 +38,19 @@ async def async_setup_entry(
         [YtmDesktopMediaPlayer(coordinator, config_entry.entry_id)], True
     )
 
+def schedule_ha_update(func):
+    async def _decorator(self: YtmDesktopMediaPlayer, *args, **kwargs):
+        try:
+            await func(self, *args, **kwargs)
+            # Use request_async_refresh so the debouncer is used to delay the request a bit
+            await self.coordinator.async_request_refresh()
+        except aioytmdesktopapi.Unauthorized:
+            entry = self.hass.config_entries.async_get_entry(self._attr_unique_id)  # type: ignore[arg-type]
+            entry.async_start_reauth(self.hass)  # type: ignore[union-attr]
+            # await self.hass.config_entries.async_reload(self._configentry_id)
+
+    return _decorator
+
 
 class YtmDesktopMediaPlayer(CoordinatorEntity, MediaPlayerEntity):
     """YouTube Music Desktop mediaplayer."""
@@ -56,19 +69,6 @@ class YtmDesktopMediaPlayer(CoordinatorEntity, MediaPlayerEntity):
             "name": "YouTube Music Desktop",  # API does not expose a name. Pick a decent default, user can change
             "identifiers": {(DOMAIN, configentry_id)},
         }
-
-    def schedule_ha_update(func):
-        async def _decorator(self: YtmDesktopMediaPlayer, *args, **kwargs):
-            try:
-                await func(self, *args, **kwargs)
-                # Use request_async_refresh so the debouncer is used to delay the request a bit
-                await self.coordinator.async_request_refresh()
-            except aioytmdesktopapi.Unauthorized:
-                entry = self.hass.config_entries.async_get_entry(self._attr_unique_id)
-                entry.async_start_reauth(self.hass)
-                # await self.hass.config_entries.async_reload(self._configentry_id)
-
-        return _decorator
 
     @property
     def state(self) -> MediaPlayerState | None:
