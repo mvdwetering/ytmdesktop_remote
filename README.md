@@ -2,7 +2,7 @@
 
 Custom integration for Home Assistant to remote control the [YouTube Music Desktop app](https://ytmdesktop.app/).
 
-> This integration currently only supports YTMDv1. Adding YTMDv2 support is something I would like to do at some point, but no idea when.
+> This integration supports YTMDv1. Adding YTMDv2 support is something I would like to do at some point, but no idea when.
 
 ## Features
 
